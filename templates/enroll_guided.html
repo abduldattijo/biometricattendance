@@ -1,0 +1,623 @@
+{% extends "base.html" %}
+
+{% block title %}Guided Enrollment - Face Recognition Attendance{% endblock %}
+
+{% block extra_css %}
+<style>
+    #video-container {
+        position: relative;
+        max-width: 640px;
+        margin: 0 auto;
+        border: 5px solid #6c757d;
+        border-radius: 15px;
+        transition: border-color 0.3s ease;
+        overflow: visible;
+    }
+
+    .video-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 30px;
+        flex-wrap: wrap;
+    }
+
+    @media (min-width: 1100px) {
+        .video-wrapper {
+            flex-wrap: nowrap;
+        }
+    }
+
+    #video-container.status-perfect {
+        border-color: #28a745;
+        box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
+    }
+
+    #video-container.status-adjusting {
+        border-color: #ffc107;
+        box-shadow: 0 0 20px rgba(255, 193, 7, 0.3);
+    }
+
+    #video-container.status-warning {
+        border-color: #ff9800;
+    }
+
+    #webcam {
+        width: 100%;
+        border-radius: 10px;
+        display: block;
+    }
+
+    #canvas {
+        display: none;
+    }
+
+    #feedback-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 20px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+        color: white;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 10px 10px 0 0;
+        min-height: 80px;
+    }
+
+    #progress-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 15px;
+        background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+        border-radius: 0 0 10px 10px;
+    }
+
+    .progress {
+        height: 30px;
+        font-size: 16px;
+    }
+
+    .captured-image {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .captured-image:hover {
+        transform: scale(1.05);
+    }
+
+    .pose-label {
+        text-align: center;
+        margin-top: 5px;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 12px;
+    }
+
+    #countdown {
+        font-size: 72px;
+        font-weight: bold;
+        color: #28a745;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .flash-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        opacity: 0;
+        pointer-events: none;
+        border-radius: 10px;
+    }
+
+    .flash-overlay.active {
+        animation: flash 0.3s ease-out;
+    }
+
+    @keyframes flash {
+        0%, 100% { opacity: 0; }
+        50% { opacity: 0.8; }
+    }
+
+    /* Feedback styling */
+    .pose-instruction {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .status-indicator {
+        font-size: 20px;
+        font-weight: bold;
+        padding: 8px 15px;
+        border-radius: 5px;
+        margin: 5px 0;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .status-ready {
+        background-color: rgba(40, 167, 69, 0.9);
+        animation: pulse 1s infinite;
+    }
+
+    .status-adjusting {
+        background-color: rgba(255, 193, 7, 0.9);
+    }
+
+    .feedback-detail {
+        font-size: 14px;
+        margin: 3px 0;
+        padding: 3px 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 3px;
+    }
+
+    .feedback-perfect {
+        color: #28a745 !important;
+    }
+
+    .feedback-adjusting {
+        color: #ffc107 !important;
+    }
+
+    .feedback-warning {
+        color: #ff9800 !important;
+    }
+
+    .feedback-error {
+        color: #dc3545 !important;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    /* Head Guide Styles */
+    #head-guide {
+        width: 180px;
+        min-width: 180px;
+        height: auto;
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 10px;
+        padding: 20px 15px;
+        border: 3px solid #ffc107;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        flex-shrink: 0;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* Head guide status colors */
+    #head-guide.status-correct {
+        border-color: #28a745;
+        box-shadow: 0 4px 20px rgba(40, 167, 69, 0.6);
+    }
+
+    #head-guide.status-adjusting {
+        border-color: #ffc107;
+        box-shadow: 0 4px 20px rgba(255, 193, 7, 0.6);
+        animation: pulse-guide 1s infinite;
+    }
+
+    @keyframes pulse-guide {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    @media (max-width: 1100px) {
+        .video-wrapper {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #head-guide {
+            order: -1;
+            width: 200px;
+            margin-bottom: 15px;
+        }
+    }
+
+    #head-guide-title {
+        text-align: center;
+        color: #ffc107;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    #head-guide-label {
+        text-align: center;
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        margin-top: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    #head-guide-status {
+        text-align: center;
+        font-size: 40px;
+        margin-top: 5px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .status-icon-correct {
+        color: #28a745;
+        animation: check-pulse 0.5s ease-in-out;
+    }
+
+    .status-icon-adjusting {
+        color: #ffc107;
+    }
+
+    @keyframes check-pulse {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    .head-visual {
+        position: relative;
+        width: 120px;
+        height: 140px;
+        margin: 0 auto;
+        perspective: 800px;
+        perspective-origin: center center;
+    }
+
+    .head-circle {
+        width: 90px;
+        height: 110px;
+        background: linear-gradient(135deg, #f4a460 0%, #d2691e 100%);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        position: absolute;
+        top: 10px;
+        left: 15px;
+        transition: transform 0.8s ease-in-out, box-shadow 0.8s ease-in-out;
+        border: 3px solid #8b4513;
+        transform-style: preserve-3d;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Ears for better visual orientation */
+    .head-ear-left,
+    .head-ear-right {
+        position: absolute;
+        width: 20px;
+        height: 30px;
+        background: #d2691e;
+        border-radius: 50%;
+        top: 40%;
+        border: 2px solid #8b4513;
+        transition: all 0.8s ease-in-out;
+    }
+
+    .head-ear-left {
+        left: -8px;
+        transform: translateZ(-20px);
+    }
+
+    .head-ear-right {
+        right: -8px;
+        transform: translateZ(-20px);
+    }
+
+    /* Face features */
+    .head-circle::before {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #000;
+        border-radius: 50%;
+        top: 35%;
+        left: 25%;
+        box-shadow: 30px 0 0 #000;
+    }
+
+    .head-circle::after {
+        content: '';
+        position: absolute;
+        width: 25px;
+        height: 3px;
+        background: #000;
+        border-radius: 2px;
+        top: 55%;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* Nose indicator */
+    .head-nose {
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 12px solid #c4773d;
+        top: 45%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        transition: all 0.8s ease-in-out;
+    }
+
+    /* Pose-specific head positions - VERY OBVIOUS ROTATIONS */
+    .head-visual.pose-front .head-circle {
+        transform: rotateY(0deg) rotateX(0deg) !important;
+    }
+
+    .head-visual.pose-front .head-nose {
+        transform: translateX(-50%) rotateY(0deg) rotateX(0deg) !important;
+    }
+
+    .head-visual.pose-front .head-ear-left,
+    .head-visual.pose-front .head-ear-right {
+        opacity: 1 !important;
+    }
+
+    /* Turn LEFT pose - ROTATE LEFT */
+    .head-visual.pose-left .head-circle {
+        transform: rotateY(-60deg) rotateX(0deg) !important;
+        box-shadow: -8px 5px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .head-visual.pose-left .head-nose {
+        transform: translateX(-50%) rotateY(-60deg) rotateX(0deg) translateX(-20px) !important;
+    }
+
+    .head-visual.pose-left .head-ear-left {
+        opacity: 1 !important;
+        left: -10px !important;
+    }
+
+    .head-visual.pose-left .head-ear-right {
+        opacity: 0.2 !important;
+    }
+
+    /* Turn RIGHT pose - ROTATE RIGHT */
+    .head-visual.pose-right .head-circle {
+        transform: rotateY(60deg) rotateX(0deg) !important;
+        box-shadow: 8px 5px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .head-visual.pose-right .head-nose {
+        transform: translateX(-50%) rotateY(60deg) rotateX(0deg) translateX(20px) !important;
+    }
+
+    .head-visual.pose-right .head-ear-left {
+        opacity: 0.2 !important;
+    }
+
+    .head-visual.pose-right .head-ear-right {
+        opacity: 1 !important;
+        right: -10px !important;
+    }
+
+    /* Tilt UP pose - LOOK UP */
+    .head-visual.pose-up .head-circle {
+        transform: rotateY(0deg) rotateX(-40deg) !important;
+        box-shadow: 0 -3px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .head-visual.pose-up .head-nose {
+        transform: translateX(-50%) rotateY(0deg) rotateX(-40deg) translateY(-12px) !important;
+    }
+
+    .head-visual.pose-up .head-ear-left,
+    .head-visual.pose-up .head-ear-right {
+        opacity: 1 !important;
+    }
+
+    /* Tilt DOWN pose - LOOK DOWN */
+    .head-visual.pose-down .head-circle {
+        transform: rotateY(0deg) rotateX(40deg) !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .head-visual.pose-down .head-nose {
+        transform: translateX(-50%) rotateY(0deg) rotateX(40deg) translateY(12px) !important;
+    }
+
+    .head-visual.pose-down .head-ear-left,
+    .head-visual.pose-down .head-ear-right {
+        opacity: 1 !important;
+    }
+
+    /* Highlight animation when pose changes */
+    @keyframes pose-change {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    .head-visual.pose-changing {
+        animation: pose-change 0.6s ease-in-out;
+    }
+
+    .guide-arrow {
+        position: absolute;
+        font-size: 30px;
+        animation: bounce 1s infinite;
+        color: #ffc107;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .arrow-left {
+        left: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .arrow-right {
+        right: -15px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .arrow-up {
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .arrow-down {
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    @keyframes bounce {
+        0%, 100% { transform: translateY(-50%) translateX(0); }
+        50% { transform: translateY(-50%) translateX(-5px); }
+    }
+
+    @keyframes bounce-right {
+        0%, 100% { transform: translateY(-50%) translateX(0); }
+        50% { transform: translateY(-50%) translateX(5px); }
+    }
+
+    @keyframes bounce-up {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-50%) translateY(-5px); }
+    }
+
+    @keyframes bounce-down {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-50%) translateY(5px); }
+    }
+
+    .arrow-right {
+        animation: bounce-right 1s infinite;
+    }
+
+    .arrow-up {
+        animation: bounce-up 1s infinite;
+    }
+
+    .arrow-down {
+        animation: bounce-down 1s infinite;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="bi bi-camera-fill"></i> Guided Face Capture
+    </h1>
+
+    <div class="row">
+        <!-- Webcam Section -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <div class="video-wrapper">
+                        <div id="video-container">
+                            <video id="webcam" autoplay playsinline></video>
+                            <canvas id="canvas"></canvas>
+                            <div id="feedback-overlay">
+                                <div id="feedback-text">Initializing camera...</div>
+                                <div id="countdown" style="display: none;"></div>
+                            </div>
+                            <div id="progress-overlay">
+                                <div class="progress">
+                                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%">
+                                        <span id="progress-text">0/5</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flash-overlay" id="flash-overlay"></div>
+                        </div>
+
+                        <!-- Head Position Guide -->
+                        <div id="head-guide">
+                            <div id="head-guide-title">👤 Follow This</div>
+                            <div class="head-visual pose-front" id="head-visual">
+                                <div class="head-circle" id="head-circle">
+                                    <div class="head-ear-left"></div>
+                                    <div class="head-ear-right"></div>
+                                    <div class="head-nose"></div>
+                                </div>
+                                <div class="guide-arrow arrow-left" id="arrow-left" style="display: none;">⬅</div>
+                                <div class="guide-arrow arrow-right" id="arrow-right" style="display: none;">➡</div>
+                                <div class="guide-arrow arrow-up" id="arrow-up" style="display: none;">⬆</div>
+                                <div class="guide-arrow arrow-down" id="arrow-down" style="display: none;">⬇</div>
+                            </div>
+                            <div id="head-guide-label">FRONT</div>
+                            <div id="head-guide-status"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 text-center">
+                        <button id="cancel-btn" class="btn btn-danger btn-lg">
+                            <i class="bi bi-x-circle"></i> Cancel Enrollment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Captured Images Section -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-images"></i> Captured Images
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="captured-images-grid" class="row g-2">
+                        <!-- Images will be added here dynamically -->
+                    </div>
+
+                    <div id="no-captures" class="text-center text-muted py-4">
+                        <i class="bi bi-camera" style="font-size: 48px;"></i>
+                        <p class="mt-2">No images captured yet</p>
+                    </div>
+
+                    <button id="confirm-enrollment-btn" class="btn btn-primary w-100 mt-3" style="display: none;">
+                        <i class="bi bi-check-circle"></i> Confirm Enrollment
+                    </button>
+                </div>
+            </div>
+
+            <!-- Employee Info -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">Employee Details</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>ID:</strong> <span id="display-employee-id">-</span></p>
+                    <p class="mb-1"><strong>Name:</strong> <span id="display-name">-</span></p>
+                    <p class="mb-0"><strong>Department:</strong> <span id="display-department">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/guided_capture.js') }}"></script>
+{% endblock %}

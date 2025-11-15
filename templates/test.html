@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}System Test - Face Recognition Attendance{% endblock %}
+
+{% block extra_css %}
+<style>
+    #webcam {
+        width: 100%;
+        max-width: 640px;
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="bi bi-gear-fill"></i> System Test
+    </h1>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Webcam Test</h5>
+                </div>
+                <div class="card-body">
+                    <video id="webcam" autoplay playsinline></video>
+                    <div class="mt-3">
+                        <button id="start-webcam-btn" class="btn btn-success">
+                            <i class="bi bi-camera-video-fill"></i> Start Webcam
+                        </button>
+                        <button id="stop-webcam-btn" class="btn btn-danger" disabled>
+                            <i class="bi bi-camera-video-off-fill"></i> Stop Webcam
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">System Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Browser:</th>
+                            <td id="browser-info">-</td>
+                        </tr>
+                        <tr>
+                            <th>Webcam Status:</th>
+                            <td id="webcam-status">Not started</td>
+                        </tr>
+                        <tr>
+                            <th>MediaDevices API:</th>
+                            <td id="mediadevices-support">-</td>
+                        </tr>
+                        <tr>
+                            <th>getUserMedia:</th>
+                            <td id="getusermedia-support">-</td>
+                        </tr>
+                    </table>
+
+                    <h6 class="mt-4">Configuration</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Face Model:</th>
+                            <td>buffalo_l (InsightFace)</td>
+                        </tr>
+                        <tr>
+                            <th>Recognition Threshold:</th>
+                            <td>0.30 (optimized for West African faces)</td>
+                        </tr>
+                        <tr>
+                            <th>Min Blur Threshold:</th>
+                            <td>100.0</td>
+                        </tr>
+                        <tr>
+                            <th>Brightness Range:</th>
+                            <td>60-200</td>
+                        </tr>
+                        <tr>
+                            <th>Min Contrast:</th>
+                            <td>30.0</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Database Test</h5>
+                </div>
+                <div class="card-body">
+                    <button id="test-db-btn" class="btn btn-info">
+                        <i class="bi bi-database-check"></i> Test Database Connection
+                    </button>
+                    <div id="db-test-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let webcamStream = null;
+
+    // Detect browser
+    const browserInfo = navigator.userAgent;
+    document.getElementById('browser-info').textContent = browserInfo;
+
+    // Check MediaDevices API
+    if (navigator.mediaDevices) {
+        document.getElementById('mediadevices-support').innerHTML = '<span class="badge bg-success">Supported</span>';
+    } else {
+        document.getElementById('mediadevices-support').innerHTML = '<span class="badge bg-danger">Not Supported</span>';
+    }
+
+    // Check getUserMedia
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        document.getElementById('getusermedia-support').innerHTML = '<span class="badge bg-success">Supported</span>';
+    } else {
+        document.getElementById('getusermedia-support').innerHTML = '<span class="badge bg-danger">Not Supported</span>';
+    }
+
+    // Start webcam
+    document.getElementById('start-webcam-btn').addEventListener('click', async function() {
+        try {
+            webcamStream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480 }
+            });
+
+            document.getElementById('webcam').srcObject = webcamStream;
+            document.getElementById('webcam-status').innerHTML = '<span class="badge bg-success">Running</span>';
+            document.getElementById('start-webcam-btn').disabled = true;
+            document.getElementById('stop-webcam-btn').disabled = false;
+            showToast('Webcam started successfully', 'success');
+        } catch (error) {
+            console.error('Webcam error:', error);
+            document.getElementById('webcam-status').innerHTML = '<span class="badge bg-danger">Error</span>';
+            showToast('Failed to start webcam: ' + error.message, 'error');
+        }
+    });
+
+    // Stop webcam
+    document.getElementById('stop-webcam-btn').addEventListener('click', function() {
+        if (webcamStream) {
+            webcamStream.getTracks().forEach(track => track.stop());
+            document.getElementById('webcam').srcObject = null;
+            webcamStream = null;
+            document.getElementById('webcam-status').innerHTML = '<span class="badge bg-secondary">Stopped</span>';
+            document.getElementById('start-webcam-btn').disabled = false;
+            document.getElementById('stop-webcam-btn').disabled = true;
+            showToast('Webcam stopped', 'info');
+        }
+    });
+
+    // Test database
+    document.getElementById('test-db-btn').addEventListener('click', function() {
+        const resultDiv = document.getElementById('db-test-result');
+        resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm"></div> Testing...';
+
+        fetch('/api/employees')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Database connection successful!<br>
+                            <strong>${data.count}</strong> employees enrolled.
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-x-circle-fill"></i>
+                            Database error: ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle-fill"></i>
+                        Connection error: ${error.message}
+                    </div>
+                `;
+            });
+    });
+</script>
+{% endblock %}

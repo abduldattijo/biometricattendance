@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="bi bi-speedometer2"></i> Dashboard
+    </h1>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-people-fill"></i> Total Employees
+                    </h5>
+                    <h2 class="display-4" id="total-employees">-</h2>
+                    <p class="text-muted">Enrolled in system</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        <i class="bi bi-check-circle-fill"></i> Today's Attendance
+                    </h5>
+                    <h2 class="display-4" id="today-attendance">-</h2>
+                    <p class="text-muted">
+                        <span id="attendance-percentage">-</span>% attendance rate
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        <i class="bi bi-graph-up"></i> This Week
+                    </h5>
+                    <div id="weekly-chart" class="mt-3">
+                        <canvas id="weeklyCanvas" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-plus-fill display-1 text-primary"></i>
+                    <h4 class="mt-3">Enroll New Employee</h4>
+                    <p class="text-muted">Register a new employee with guided face capture</p>
+                    <a href="/enroll" class="btn btn-primary btn-lg">
+                        <i class="bi bi-arrow-right-circle"></i> Start Enrollment
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-camera-fill display-1 text-success"></i>
+                    <h4 class="mt-3">Mark Attendance</h4>
+                    <p class="text-muted">Check in using facial recognition</p>
+                    <a href="/attendance" class="btn btn-success btn-lg">
+                        <i class="bi bi-arrow-right-circle"></i> Mark Attendance
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Check-ins -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-clock-history"></i> Recent Check-ins
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Time</th>
+                            <th>Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-checkins">
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    let weeklyChart = null;
+
+    // Load dashboard stats
+    function loadStats() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update stats cards
+                    document.getElementById('total-employees').textContent = data.total_employees;
+                    document.getElementById('today-attendance').textContent = data.today_attendance;
+                    document.getElementById('attendance-percentage').textContent = data.attendance_percentage;
+
+                    // Update recent check-ins
+                    updateRecentCheckins(data.recent_checkins);
+
+                    // Update weekly chart
+                    updateWeeklyChart(data.weekly_trend);
+                } else {
+                    console.error('Failed to load stats:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+            });
+    }
+
+    // Update recent check-ins table
+    function updateRecentCheckins(checkins) {
+        const tbody = document.getElementById('recent-checkins');
+        tbody.innerHTML = '';
+
+        if (checkins.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No check-ins today</td></tr>';
+            return;
+        }
+
+        checkins.forEach(record => {
+            const time = new Date(record.timestamp).toLocaleTimeString();
+            const confidence = record.confidence ? (record.confidence * 100).toFixed(1) + '%' : 'Manual';
+
+            const row = `
+                <tr>
+                    <td>${record.employee_id}</td>
+                    <td>${record.employee_name}</td>
+                    <td>${time}</td>
+                    <td>
+                        ${record.confidence ?
+                            `<span class="badge bg-success">${confidence}</span>` :
+                            `<span class="badge bg-secondary">Manual</span>`
+                        }
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    // Update weekly chart
+    function updateWeeklyChart(weeklyData) {
+        const labels = weeklyData.map(d => {
+            const date = new Date(d.date);
+            return date.toLocaleDateString('en-US', { weekday: 'short' });
+        });
+        const counts = weeklyData.map(d => d.count);
+
+        const ctx = document.getElementById('weeklyCanvas').getContext('2d');
+
+        // Destroy existing chart if it exists
+        if (weeklyChart) {
+            weeklyChart.destroy();
+        }
+
+        weeklyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Attendance',
+                    data: counts,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load stats on page load
+    loadStats();
+
+    // Refresh stats every 30 seconds
+    setInterval(loadStats, 30000);
+</script>
+{% endblock %}

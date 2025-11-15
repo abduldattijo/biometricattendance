@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Employees - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="bi bi-people-fill"></i> Enrolled Employees
+    </h1>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <input type="text" id="search-input" class="form-control" placeholder="Search employees...">
+                </div>
+                <div>
+                    <a href="/enroll" class="btn btn-primary">
+                        <i class="bi bi-person-plus-fill"></i> Enroll New Employee
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Department</th>
+                            <th>Email</th>
+                            <th>Enrolled Date</th>
+                            <th>Face Images</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employees-table-body">
+                        <tr>
+                            <td colspan="8" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="no-employees" class="text-center text-muted py-5" style="display: none;">
+                <i class="bi bi-people" style="font-size: 64px;"></i>
+                <h4 class="mt-3">No Employees Enrolled</h4>
+                <p>Get started by enrolling your first employee</p>
+                <a href="/enroll" class="btn btn-primary">
+                    <i class="bi bi-person-plus-fill"></i> Enroll Employee
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete employee <strong id="delete-employee-name"></strong>?</p>
+                <p class="text-danger">This action cannot be undone. All face encodings and attendance records will be affected.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">
+                    <i class="bi bi-trash-fill"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allEmployees = [];
+    let employeeToDelete = null;
+
+    // Load employees
+    function loadEmployees() {
+        fetch('/api/employees')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    allEmployees = data.employees;
+                    displayEmployees(allEmployees);
+                } else {
+                    showToast('Failed to load employees: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading employees:', error);
+                showToast('Error loading employees', 'error');
+            });
+    }
+
+    // Display employees
+    function displayEmployees(employees) {
+        const tbody = document.getElementById('employees-table-body');
+        tbody.innerHTML = '';
+
+        if (employees.length === 0) {
+            document.getElementById('no-employees').style.display = 'block';
+            tbody.closest('table').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('no-employees').style.display = 'none';
+        tbody.closest('table').style.display = 'table';
+
+        employees.forEach(emp => {
+            const enrolledDate = new Date(emp.enrolled_at).toLocaleDateString();
+            const statusBadge = emp.is_active ?
+                '<span class="badge bg-success">Active</span>' :
+                '<span class="badge bg-secondary">Inactive</span>';
+
+            const row = `
+                <tr>
+                    <td>${emp.employee_id}</td>
+                    <td>${emp.name}</td>
+                    <td>${emp.department || '-'}</td>
+                    <td>${emp.email || '-'}</td>
+                    <td>${enrolledDate}</td>
+                    <td><span class="badge bg-info">${emp.face_count}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="confirmDelete('${emp.employee_id}', '${emp.name}')">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    // Search employees
+    document.getElementById('search-input').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const filtered = allEmployees.filter(emp =>
+            emp.employee_id.toLowerCase().includes(searchTerm) ||
+            emp.name.toLowerCase().includes(searchTerm) ||
+            (emp.department && emp.department.toLowerCase().includes(searchTerm))
+        );
+        displayEmployees(filtered);
+    });
+
+    // Confirm delete
+    function confirmDelete(employeeId, name) {
+        employeeToDelete = employeeId;
+        document.getElementById('delete-employee-name').textContent = name;
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+
+    // Delete employee
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (!employeeToDelete) return;
+
+        fetch(`/enroll/api/employee/${employeeToDelete}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                loadEmployees(); // Reload list
+            } else {
+                showToast('Failed to delete: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting employee:', error);
+            showToast('Error deleting employee', 'error');
+        });
+    });
+
+    // Load employees on page load
+    loadEmployees();
+</script>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Enroll Employee - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="bi bi-person-plus-fill"></i> Enroll New Employee
+    </h1>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Employee Information</h5>
+                    <p class="text-muted">
+                        Enter employee details and capture face images for enrollment
+                    </p>
+
+                    <form id="enrollment-form">
+                        <div class="mb-3">
+                            <label for="employee_id" class="form-label">
+                                Employee ID <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="employee_id" name="employee_id" required>
+                            <div class="form-text">Unique identifier for the employee</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">
+                                Full Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="department" class="form-label">Department</label>
+                            <input type="text" class="form-control" id="department" name="department">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone">
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-primary btn-lg" id="start-capture-btn">
+                                <i class="bi bi-camera-fill"></i> Start Guided Face Capture
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Instructions Card -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle-fill"></i> Enrollment Instructions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>Fill in the employee information above</li>
+                        <li>Click "Start Guided Face Capture"</li>
+                        <li>Follow the on-screen instructions to capture your face from 5 different angles:
+                            <ul>
+                                <li>Front face (looking straight)</li>
+                                <li>Turn left</li>
+                                <li>Turn right</li>
+                                <li>Tilt head up</li>
+                                <li>Tilt head down</li>
+                            </ul>
+                        </li>
+                        <li>The system will automatically capture when quality is good</li>
+                        <li>Ensure good lighting and hold still during capture</li>
+                        <li>Review captured images and confirm enrollment</li>
+                    </ol>
+
+                    <div class="alert alert-warning">
+                        <strong>Tips for best results:</strong>
+                        <ul class="mb-0">
+                            <li>Ensure face is well-lit and visible</li>
+                            <li>Remove glasses if possible</li>
+                            <li>Remove face masks or coverings</li>
+                            <li>Hold still when the system is ready to capture</li>
+                            <li>Follow instructions carefully for each pose</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('start-capture-btn').addEventListener('click', function() {
+        // Validate form
+        const employeeId = document.getElementById('employee_id').value.trim();
+        const name = document.getElementById('name').value.trim();
+
+        if (!employeeId || !name) {
+            showToast('Please fill in Employee ID and Name', 'error');
+            return;
+        }
+
+        // Store employee data in session storage
+        const employeeData = {
+            employee_id: employeeId,
+            name: name,
+            department: document.getElementById('department').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            phone: document.getElementById('phone').value.trim()
+        };
+
+        sessionStorage.setItem('enrollmentData', JSON.stringify(employeeData));
+
+        // Redirect to guided enrollment page
+        window.location.href = '/enroll/guided';
+    });
+</script>
+{% endblock %}
