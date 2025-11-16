@@ -37,13 +37,16 @@ class Config:
     MAX_FACE_SIZE = 0.70  # Face must not exceed 70% of frame
     MAX_CENTER_OFFSET = 0.20  # Face center within 20% of frame center
 
-    # Head pose thresholds for guided enrollment (more forgiving to avoid oscillation)
+    # Head pose thresholds for guided enrollment (NON-OVERLAPPING ranges to prevent confusion)
+    # Gaps between ranges ensure clear distinction between poses and prevent endless loops
+    # Yaw: negative = head turned LEFT, positive = head turned RIGHT
+    # Pitch: negative = head tilted DOWN, positive = head tilted UP
     POSE_REQUIREMENTS = {
-        'front': {'yaw': (-30, 30), 'pitch': (-25, 25)},  # Relaxed tolerance to prevent oscillation
-        'left': {'yaw': (-50, -20), 'pitch': (-20, 20)},   # Wider range
-        'right': {'yaw': (20, 50), 'pitch': (-20, 20)},    # Wider range
-        'up': {'yaw': (-20, 20), 'pitch': (15, 40)},       # Wider tolerance
-        'down': {'yaw': (-20, 20), 'pitch': (-40, -15)}    # Wider tolerance
+        'front': {'yaw': (-15, 15), 'pitch': (-15, 15)},      # Strict front-facing
+        'left': {'yaw': (-65, -30), 'pitch': (-25, 25)},      # Clear left turn (15° gap from front)
+        'right': {'yaw': (30, 65), 'pitch': (-25, 25)},       # Clear right turn (15° gap from front)
+        'up': {'yaw': (-25, 25), 'pitch': (25, 55)},          # Clear upward tilt (10° gap from front)
+        'down': {'yaw': (-25, 25), 'pitch': (-55, -25)}       # Clear downward tilt (10° gap from front)
     }
 
     # Enrollment settings
