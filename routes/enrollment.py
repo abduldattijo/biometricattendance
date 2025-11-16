@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app
 from models import db, Employee, FaceEncoding
 from models.face_engine import FaceRecognitionEngine
 from utils import ImageQualityChecker, PoseEstimator
-from config import Config
+from config import Config, BASE_DIR
 import cv2
 import numpy as np
 import base64
@@ -239,7 +239,7 @@ def enroll_employee():
             image_path = employee_dir / image_filename
             cv2.imwrite(str(image_path), image)
 
-            saved_images[pose_type] = str(image_path.relative_to(Config.BASE_DIR))
+            saved_images[pose_type] = str(image_path.relative_to(BASE_DIR))
 
         if len(embeddings) == 0:
             return jsonify({
