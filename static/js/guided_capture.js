@@ -4,8 +4,9 @@
  */
 
 const REQUIRED_POSES = ['front', 'left', 'right', 'up', 'down'];
-const VALIDATION_INTERVAL = 500; // ms
+const VALIDATION_INTERVAL = 800; // ms (increased from 500ms for smoother feedback)
 const COUNTDOWN_SECONDS = 3;
+const FRAMES_TO_HOLD = 2; // Requires ~1.6 seconds of holding still before countdown
 
 let webcamStream = null;
 let currentPoseIndex = 0;
@@ -15,6 +16,7 @@ let countdownTimer = null;
 let isCountingDown = false;
 let isProcessing = false;
 let employeeData = null;
+let stabilityCounter = 0; // Tracks consecutive "ready" frames
 
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('canvas');
@@ -195,6 +197,7 @@ function updateFeedbackDisplay(data) {
     const videoContainer = document.getElementById('video-container');
     const headGuide = document.getElementById('head-guide');
     const headGuideStatus = document.getElementById('head-guide-status');
+    const faceOverlay = document.getElementById('face-guide-overlay');
 
     console.log(`updateFeedbackDisplay called with currentPose: ${currentPose}`);
 
@@ -205,6 +208,7 @@ function updateFeedbackDisplay(data) {
     feedbackText.className = '';
     videoContainer.classList.remove('status-perfect', 'status-adjusting', 'status-warning');
     headGuide.classList.remove('status-correct', 'status-adjusting');
+    if (faceOverlay) faceOverlay.classList.remove('active');
 
     // --- VISUAL CORRECTION: Show correction arrows when user needs to adjust ---
     // If we are trying to do "Front" but the user needs to turn
@@ -266,6 +270,9 @@ function updateFeedbackDisplay(data) {
 
         // Show checkmark on head guide
         headGuideStatus.innerHTML = '<span class="status-icon-correct">✓</span>';
+
+        // Turn the face guide frame green/solid
+        if (faceOverlay) faceOverlay.classList.add('active');
     } else if (data.pose_pass && !data.quality_pass) {
         feedbackText.className = 'feedback-warning';
         videoContainer.classList.add('status-warning');
@@ -349,9 +356,20 @@ async function validateFrame() {
             // Update feedback with color coding
             updateFeedbackDisplay(data);
 
-            // If ready to capture, start countdown
-            if (data.ready_to_capture && !isCountingDown) {
-                startCountdown(imageData);
+            // Stability check: require holding correct pose before countdown
+            if (data.ready_to_capture) {
+                // Increment the stability counter
+                stabilityCounter++;
+                console.log(`Stability: ${stabilityCounter}/${FRAMES_TO_HOLD}`);
+
+                // Only start countdown if we've been stable for enough frames
+                if (stabilityCounter >= FRAMES_TO_HOLD && !isCountingDown) {
+                    startCountdown(imageData);
+                    stabilityCounter = 0; // Reset for next pose
+                }
+            } else {
+                // If user moves out of position, reset the counter immediately
+                stabilityCounter = 0;
             }
         } else {
             feedbackText.textContent = 'Error: ' + data.error;

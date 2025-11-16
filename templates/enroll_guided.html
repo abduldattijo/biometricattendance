@@ -518,6 +518,30 @@
     .arrow-down {
         animation: bounce-down 1s infinite;
     }
+
+    /* Face Guide Overlay - helps user position correctly */
+    .face-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 280px;  /* Adjust based on ideal face size */
+        height: 380px; /* Oval shape for head */
+        border: 4px dashed rgba(255, 255, 255, 0.5);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; /* Head-like oval */
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* Darkens everything outside */
+        pointer-events: none; /* Let clicks pass through */
+        z-index: 10;
+        transition: border-color 0.3s ease, border-style 0.3s ease;
+    }
+
+    /* Turn green and solid when ready */
+    .face-overlay.active {
+        border-color: #28a745;
+        border-style: solid;
+        border-width: 5px;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 30px rgba(40, 167, 69, 0.8);
+    }
 </style>
 {% endblock %}
 
@@ -536,6 +560,7 @@
                         <div id="video-container">
                             <video id="webcam" autoplay playsinline></video>
                             <canvas id="canvas"></canvas>
+                            <div id="face-guide-overlay" class="face-overlay"></div>
                             <div id="feedback-overlay">
                                 <div id="feedback-text">Initializing camera...</div>
                                 <div id="countdown" style="display: none;"></div>
