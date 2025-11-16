@@ -49,8 +49,8 @@ class Config:
         'down': {'yaw': (-25, 25), 'pitch': (-55, -20)}       # Slight overlap with front
     }
 
-    # Enrollment settings
-    REQUIRED_POSES = ['front', 'left', 'right', 'up', 'down']
+    # Enrollment settings - simplified to essentials for faster, more reliable enrollment
+    REQUIRED_POSES = ['front', 'left', 'right']  # Removed 'up', 'down' - focus on essentials
     CAPTURE_COUNTDOWN = 3  # Seconds before auto-capture
 
     # Performance settings

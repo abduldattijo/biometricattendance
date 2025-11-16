@@ -3,7 +3,7 @@
  * Handles multi-pose enrollment with real-time quality feedback
  */
 
-const REQUIRED_POSES = ['front', 'left', 'right', 'up', 'down'];
+const REQUIRED_POSES = ['front', 'left', 'right']; // Simplified: removed 'up', 'down'
 const VALIDATION_INTERVAL = 800; // ms (increased from 500ms for smoother feedback)
 const COUNTDOWN_SECONDS = 3;
 const FRAMES_TO_HOLD = 2; // Requires ~1.6 seconds of holding still before countdown
