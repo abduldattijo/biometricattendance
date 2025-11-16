@@ -155,13 +155,12 @@ def validate_frame():
 
         return jsonify({
             'success': True,
-            'ready_to_capture': ready_to_capture,
+            'ready_to_capture': bool(ready_to_capture),  # Convert to Python bool
             'feedback': ' | '.join(feedback_messages),
-            'quality_pass': quality_results['overall_pass'],
-            'pose_pass': pose_pass,
-            'quality_score': quality_results.get('quality_score', 0),
-            'quality_results': quality_results,  # Include detailed quality check results for debugging
-            'pose': pose
+            'quality_pass': bool(quality_results['overall_pass']),  # Convert to Python bool
+            'pose_pass': bool(pose_pass),  # Convert to Python bool
+            'quality_score': float(quality_results.get('quality_score', 0)),  # Convert to Python float
+            'pose': pose if pose is None else {k: float(v) if v is not None else None for k, v in pose.items()}  # Convert pose values
         })
 
     except Exception as e:
