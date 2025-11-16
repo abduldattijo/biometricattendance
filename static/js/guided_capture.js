@@ -6,7 +6,7 @@
 const REQUIRED_POSES = ['front', 'left', 'right']; // Simplified: removed 'up', 'down'
 const VALIDATION_INTERVAL = 800; // ms (increased from 500ms for smoother feedback)
 const COUNTDOWN_SECONDS = 3;
-const FRAMES_TO_HOLD = 2; // Requires ~1.6 seconds of holding still before countdown
+const FRAMES_TO_HOLD = 1; // Reduced from 2 - captures faster (~0.8s hold)
 
 let webcamStream = null;
 let currentPoseIndex = 0;
@@ -349,9 +349,39 @@ async function validateFrame() {
         const data = await response.json();
 
         if (data.success) {
-            console.log(`Validation result: pose_pass=${data.pose_pass}, quality_pass=${data.quality_pass}, ready=${data.ready_to_capture}`);
-            console.log(`Feedback from server: ${data.feedback}`);
-            console.log(`Pose data:`, data.pose);
+            // === ENHANCED DEBUG LOGGING ===
+            console.log('='.repeat(50));
+            console.log('🔍 VALIDATION DEBUG - Frame Check Results');
+            console.log('='.repeat(50));
+            console.log('📊 Overall Status:');
+            console.log('  ├─ Quality Pass:', data.quality_pass ? '✅' : '❌');
+            console.log('  ├─ Pose Pass:', data.pose_pass ? '✅' : '❌');
+            console.log('  └─ Ready to Capture:', data.ready_to_capture ? '✅ YES' : '❌ NO');
+            console.log('');
+            console.log('💬 Feedback:', data.feedback);
+            console.log('');
+
+            if (data.quality_results) {
+                console.log('🎨 Quality Check Details:');
+                const checks = data.quality_results.checks;
+                for (const [check, result] of Object.entries(checks)) {
+                    const icon = result.pass ? '✅' : '❌';
+                    console.log(`  ${icon} ${check}:`, result.pass ? 'PASS' : 'FAIL', result.message || '');
+                }
+                console.log('');
+            }
+
+            if (data.pose) {
+                console.log('🎯 Pose Details:');
+                console.log('  ├─ Yaw (Left/Right):', data.pose.yaw?.toFixed(1) + '°');
+                console.log('  ├─ Pitch (Up/Down):', data.pose.pitch?.toFixed(1) + '°');
+                console.log('  └─ Roll (Tilt):', data.pose.roll?.toFixed(1) + '°');
+                console.log('');
+            }
+
+            console.log('⏱️  Stability:', `${stabilityCounter}/${FRAMES_TO_HOLD} frames`);
+            console.log('='.repeat(50));
+            console.log('');
 
             // Update feedback with color coding
             updateFeedbackDisplay(data);

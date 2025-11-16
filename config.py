@@ -28,12 +28,12 @@ class Config:
     FACE_DETECTION_THRESHOLD = 0.5
     FACE_RECOGNITION_THRESHOLD = 0.30  # Calibrated for West African faces (0.25-0.30)
 
-    # Image quality thresholds (relaxed for standard webcams and real-world conditions)
-    MIN_BLUR_THRESHOLD = 40.0  # Relaxed from 100.0 - prevents "blurry" errors on standard webcams
-    MIN_BRIGHTNESS = 40  # Relaxed from 60 - works in dim lighting
-    MAX_BRIGHTNESS = 200  # Maximum mean brightness
-    MIN_CONTRAST = 30.0  # Standard deviation
-    MIN_FACE_SIZE = 0.10  # Relaxed from 0.15 - prevents "come closer" errors
+    # Image quality thresholds (heavily relaxed for basic webcams and varied lighting)
+    MIN_BLUR_THRESHOLD = 20.0  # Very relaxed - works with basic webcams
+    MIN_BRIGHTNESS = 30  # Works in dimmer lighting
+    MAX_BRIGHTNESS = 220  # Allows brighter conditions
+    MIN_CONTRAST = 20.0  # Less strict contrast requirement
+    MIN_FACE_SIZE = 0.08  # Allows slightly smaller faces
     MAX_FACE_SIZE = 0.70  # Face must not exceed 70% of frame
     MAX_CENTER_OFFSET = 0.20  # Face center within 20% of frame center
 
