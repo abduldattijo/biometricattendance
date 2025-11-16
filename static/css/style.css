@@ -89,6 +89,12 @@ video {
     background-color: #000;
 }
 
+/* Mirror mode for webcam - makes "Turn Left/Right" feel more natural */
+#webcam {
+    transform: scaleX(-1);
+    -webkit-transform: scaleX(-1);
+}
+
 /* Alerts */
 .alert {
     border-radius: 0.375rem;

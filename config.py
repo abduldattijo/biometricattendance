@@ -39,7 +39,7 @@ class Config:
 
     # Head pose thresholds for guided enrollment (more forgiving to avoid oscillation)
     POSE_REQUIREMENTS = {
-        'front': {'yaw': (-20, 20), 'pitch': (-20, 20)},  # Wider tolerance for front pose
+        'front': {'yaw': (-30, 30), 'pitch': (-25, 25)},  # Relaxed tolerance to prevent oscillation
         'left': {'yaw': (-50, -20), 'pitch': (-20, 20)},   # Wider range
         'right': {'yaw': (20, 50), 'pitch': (-20, 20)},    # Wider range
         'up': {'yaw': (-20, 20), 'pitch': (15, 40)},       # Wider tolerance

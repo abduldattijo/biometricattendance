@@ -198,13 +198,39 @@ function updateFeedbackDisplay(data) {
 
     console.log(`updateFeedbackDisplay called with currentPose: ${currentPose}`);
 
-    // Update head guide pose
+    // Update head guide pose (Shows the GOAL)
     updateHeadGuide(currentPose);
 
     // Clear previous classes
     feedbackText.className = '';
     videoContainer.classList.remove('status-perfect', 'status-adjusting', 'status-warning');
     headGuide.classList.remove('status-correct', 'status-adjusting');
+
+    // --- VISUAL CORRECTION: Show correction arrows when user needs to adjust ---
+    // If we are trying to do "Front" but the user needs to turn
+    if (currentPose === 'front' && !data.pose_pass) {
+        const arrowLeft = document.getElementById('arrow-left');
+        const arrowRight = document.getElementById('arrow-right');
+        const arrowUp = document.getElementById('arrow-up');
+        const arrowDown = document.getElementById('arrow-down');
+
+        // Check the feedback text from server to see which way to turn
+        if (data.feedback.includes("Turn LEFT") || data.feedback.includes("turn left")) {
+            if (arrowLeft) arrowLeft.style.display = 'block';
+        }
+        else if (data.feedback.includes("Turn RIGHT") || data.feedback.includes("turn right")) {
+            if (arrowRight) arrowRight.style.display = 'block';
+        }
+
+        // Handle Pitch corrections
+        if (data.feedback.includes("Tilt head UP") || data.feedback.includes("tilt up")) {
+            if (arrowUp) arrowUp.style.display = 'block';
+        }
+        else if (data.feedback.includes("Tilt head DOWN") || data.feedback.includes("tilt down")) {
+            if (arrowDown) arrowDown.style.display = 'block';
+        }
+    }
+    // -----------------------------------------------------------------------
 
     // Parse feedback messages
     const feedbackParts = data.feedback.split(' | ');
